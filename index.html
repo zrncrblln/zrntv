@@ -142,7 +142,10 @@
         <span class="modal-sub" id="modalSub"></span>
         <span class="hd-chip">HD</span>
       </div>
-      <button class="modal-close" id="modalClose">✕</button>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button class="modal-fullscreen" id="modalFullscreen" title="Fullscreen">⛶</button>
+        <button class="modal-close" id="modalClose">✕</button>
+      </div>
     </div>
     <!-- Episode selector for TV -->
     <div class="ep-controls" id="epControls" style="display:none">
@@ -157,11 +160,14 @@
     <div class="player-wrap">
       <iframe
         id="playerFrame"
-        allowfullscreen
-        allow="autoplay; fullscreen; picture-in-picture; encrypted-media; gyroscope; accelerometer; clipboard-write"
+        allowfullscreen="true"
+        webkitallowfullscreen="true"
+        mozallowfullscreen="true"
+        allow="autoplay; fullscreen *; picture-in-picture; encrypted-media; gyroscope; accelerometer; clipboard-write"
         frameborder="0"
         referrerpolicy="no-referrer"
         scrolling="no"
+        style="border:0"
       ></iframe>
     </div>
     <div class="source-row">

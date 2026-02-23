@@ -113,7 +113,11 @@ document.addEventListener('DOMContentLoaded', () => {
   buildMobileNav();
 });
 
-// ─── API KEY CHECK ───────────────────────────
+// ─── MODAL SCROLL LOCK ───────────────────────
+// Tracks how many modals are open. Only unlocks scroll when ALL are closed.
+let _openModalCount = 0;
+function lockScroll()   { _openModalCount++; document.body.style.overflow = 'hidden'; }
+function unlockScroll() { _openModalCount = Math.max(0, _openModalCount - 1); if (_openModalCount === 0) document.body.style.overflow = ''; }
 function checkApiKey() {
   if (TMDB_KEY === 'YOUR_TMDB_API_KEY_HERE') {
     const banner = document.createElement('div');
@@ -506,7 +510,7 @@ async function openDetail(item, type) {
   currentType = type;
   const modal = document.getElementById('detailModal');
   modal.classList.add('show');
-  document.body.style.overflow = 'hidden';
+  lockScroll();
 
   const title = item.title || item.name || '';
   const poster = item.poster_path ? `${IMG}w300${item.poster_path}` : 'https://via.placeholder.com/140x210/0f1520/6b7a8d?text=No+Image';
@@ -554,7 +558,7 @@ async function openDetail(item, type) {
 
 function closeDetail() {
   document.getElementById('detailModal').classList.remove('show');
-  document.body.style.overflow = '';
+  unlockScroll();
 }
 
 // ─── PLAYER MODAL ────────────────────────────
@@ -565,9 +569,33 @@ let playerEpisode = 1;
 
 function setupPlayerModal() {
   document.getElementById('modalClose').addEventListener('click', closePlayer);
-  document.getElementById('playerModal').addEventListener('click', (e) => {
-    if (e.target === document.getElementById('playerModal')) closePlayer();
+
+  // Fullscreen button — triggers native browser fullscreen on the iframe
+  document.getElementById('modalFullscreen').addEventListener('click', () => {
+    const frame = document.getElementById('playerFrame');
+    if (frame.requestFullscreen)            frame.requestFullscreen();
+    else if (frame.webkitRequestFullscreen) frame.webkitRequestFullscreen();
+    else if (frame.mozRequestFullScreen)    frame.mozRequestFullScreen();
+    else if (frame.msRequestFullscreen)     frame.msRequestFullscreen();
   });
+
+  const overlay = document.getElementById('playerModal');
+
+  // Close on backdrop click
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closePlayer();
+  });
+
+  // Prevent iframe from hijacking scroll on the overlay.
+  // When user scrolls the overlay, temporarily kill pointer-events on the iframe.
+  let scrollTimer;
+  overlay.addEventListener('scroll', () => {
+    const frame = document.getElementById('playerFrame');
+    frame.style.pointerEvents = 'none';
+    clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(() => { frame.style.pointerEvents = 'auto'; }, 300);
+  }, { passive: true });
+
   document.querySelectorAll('.src-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.src-btn').forEach(b => b.classList.remove('active'));
@@ -596,7 +624,7 @@ async function openPlayer(item, type) {
 
   document.getElementById('modalTitle').textContent = title;
   document.getElementById('playerModal').classList.add('show');
-  document.body.style.overflow = 'hidden';
+  lockScroll();
   buildSourceButtons();
   buildAudioControls(originLang);
 
@@ -856,6 +884,8 @@ function updateAudioDisplay() {
 function closePlayer() {
   document.getElementById('playerModal').classList.remove('show');
   document.getElementById('playerFrame').src = '';
+  // Hard reset — ensure scroll is always restored when player closes
+  _openModalCount = 0;
   document.body.style.overflow = '';
 }
 
