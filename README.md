@@ -1,8 +1,8 @@
-# 🎬 StreamVault — All-in-One Streaming WebApp
+# 🎬 Zrn TV — All-in-One Streaming WebApp
 
 A sleek, dark-themed streaming webapp to watch **Movies**, **K-Dramas**, and **Anime** — all in one place.
 
-![StreamVault Preview](https://via.placeholder.com/1200x600/080c10/e8b44b?text=StreamVault)
+![Zrn TV Preview](https://via.placeholder.com/1200x600/080c10/e8b44b?text=Zrn TV)
 
 ## ✨ Features
 
@@ -29,9 +29,9 @@ A sleek, dark-themed streaming webapp to watch **Movies**, **K-Dramas**, and **A
 
 Open `app.js` and find line 6:
 ```js
-const TMDB_KEY = 'YOUR_TMDB_API_KEY_HERE';
+const TMDB_KEY = 'c138886a68189d4f50a36bd5fe53e588';
 ```
-Replace `YOUR_TMDB_API_KEY_HERE` with your actual API key.
+Replace `c138886a68189d4f50a36bd5fe53e588` with your actual API key.
 
 ### 3. Run Locally
 
@@ -59,7 +59,7 @@ git init
 git add .
 git commit -m "Initial commit"
 git branch -M main
-git remote add origin https://github.com/yourusername/streamvault.git
+git remote add origin https://github.com/yourusername/zrntv.git
 git push -u origin main
 ```
 Then enable GitHub Pages in repository settings.
@@ -67,7 +67,7 @@ Then enable GitHub Pages in repository settings.
 ## 📁 Project Structure
 
 ```
-streamvault/
+zrntv/
 ├── index.html    # App structure & layout
 ├── style.css     # All styles & animations
 ├── app.js        # Logic, API calls, state
@@ -94,7 +94,7 @@ streamvault/
 
 ## ⚠️ Disclaimer
 
-This project is intended for educational/personal use. StreamVault does not host any media files. All streams are embedded from third-party sources. Respect copyright laws in your jurisdiction.
+This project is intended for educational/personal use. Zrn TV does not host any media files. All streams are embedded from third-party sources. Respect copyright laws in your jurisdiction.
 
 ---
 
