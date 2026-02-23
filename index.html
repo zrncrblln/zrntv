@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>StreamVault — Watch Anything</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar" id="navbar">
+  <div class="nav-left">
+    <div class="logo">STREAM<span>VAULT</span></div>
+    <div class="nav-tabs">
+      <button class="nav-tab active" data-tab="home">Home</button>
+      <button class="nav-tab" data-tab="movies">Movies</button>
+      <button class="nav-tab" data-tab="kdrama">K-Drama</button>
+      <button class="nav-tab" data-tab="anime">Anime</button>
+      <button class="nav-tab" data-tab="watchlist">Watchlist</button>
+    </div>
+  </div>
+  <div class="nav-right">
+    <div class="search-wrap">
+      <input type="text" id="searchInput" placeholder="Search titles..." autocomplete="off"/>
+      <button id="searchBtn">⌕</button>
+      <div class="search-results" id="searchResults"></div>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero" id="heroSection">
+  <div class="hero-bg" id="heroBg"></div>
+  <div class="hero-gradient"></div>
+  <div class="hero-content" id="heroContent">
+    <div class="hero-badge" id="heroBadge">TRENDING NOW</div>
+    <h1 class="hero-title" id="heroTitle">Loading...</h1>
+    <p class="hero-desc" id="heroDesc"></p>
+    <div class="hero-meta" id="heroMeta"></div>
+    <div class="hero-actions">
+      <button class="btn-play" id="heroPlay">▶ Play Now</button>
+      <button class="btn-add" id="heroWatchlist">+ Watchlist</button>
+    </div>
+  </div>
+  <div class="hero-dots" id="heroDots"></div>
+</section>
+
+<!-- CONTINUE WATCHING -->
+<section class="section" id="continueSection" style="display:none">
+  <div class="section-header">
+    <h2 class="section-title">Continue Watching</h2>
+    <button class="see-all" onclick="clearContinue()">Clear All</button>
+  </div>
+  <div class="scroll-row" id="continueRow"></div>
+</section>
+
+<!-- MAIN CONTENT -->
+<main class="main" id="mainContent">
+
+  <!-- HOME PAGE -->
+  <div class="page active" id="page-home">
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">🔥 Trending Movies</h2>
+      </div>
+      <div class="scroll-row" id="trendingMovies"></div>
+    </section>
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">📺 Popular K-Dramas</h2>
+      </div>
+      <div class="scroll-row" id="popularKdramas"></div>
+    </section>
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">⚡ Top Anime</h2>
+      </div>
+      <div class="scroll-row" id="topAnime"></div>
+    </section>
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">🆕 New Releases</h2>
+      </div>
+      <div class="scroll-row" id="newReleases"></div>
+    </section>
+  </div>
+
+  <!-- MOVIES PAGE -->
+  <div class="page" id="page-movies">
+    <div class="page-header">
+      <h2>Movies</h2>
+      <div class="genre-filters" id="movieGenres"></div>
+    </div>
+    <div class="grid-container" id="movieGrid"></div>
+    <button class="load-more" id="loadMoreMovies">Load More</button>
+  </div>
+
+  <!-- KDRAMA PAGE -->
+  <div class="page" id="page-kdrama">
+    <div class="page-header">
+      <h2>K-Drama</h2>
+      <div class="genre-filters" id="kdramaGenres"></div>
+    </div>
+    <div class="grid-container" id="kdramaGrid"></div>
+    <button class="load-more" id="loadMoreKdrama">Load More</button>
+  </div>
+
+  <!-- ANIME PAGE -->
+  <div class="page" id="page-anime">
+    <div class="page-header">
+      <h2>Anime</h2>
+      <div class="genre-filters" id="animeGenres"></div>
+    </div>
+    <div class="grid-container" id="animeGrid"></div>
+    <button class="load-more" id="loadMoreAnime">Load More</button>
+  </div>
+
+  <!-- WATCHLIST PAGE -->
+  <div class="page" id="page-watchlist">
+    <div class="page-header">
+      <h2>My Watchlist</h2>
+    </div>
+    <div class="grid-container" id="watchlistGrid"></div>
+    <div class="empty-state" id="watchlistEmpty" style="display:none">
+      <div class="empty-icon">🎬</div>
+      <p>Your watchlist is empty.</p>
+      <p class="empty-sub">Browse and add titles you want to watch!</p>
+    </div>
+  </div>
+
+</main>
+
+<!-- PLAYER MODAL -->
+<div class="modal-overlay" id="playerModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div>
+        <span class="modal-title" id="modalTitle"></span>
+        <span class="modal-sub" id="modalSub"></span>
+      </div>
+      <button class="modal-close" id="modalClose">✕</button>
+    </div>
+    <!-- Episode selector for TV -->
+    <div class="ep-controls" id="epControls" style="display:none">
+      <div class="season-row">
+        <label>Season:</label>
+        <select id="seasonSelect"></select>
+        <label>Episode:</label>
+        <select id="episodeSelect"></select>
+        <button class="btn-ep" id="loadEpBtn">Load Episode</button>
+      </div>
+    </div>
+    <div class="player-wrap">
+      <iframe id="playerFrame" allowfullscreen allow="autoplay; fullscreen" frameborder="0"></iframe>
+    </div>
+    <div class="source-row">
+      <span class="source-label">Source:</span>
+      <button class="src-btn active" data-src="vidsrc">VidSrc</button>
+      <button class="src-btn" data-src="2embed">2Embed</button>
+      <button class="src-btn" data-src="vidsrcme">VidSrc.me</button>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL MODAL -->
+<div class="modal-overlay" id="detailModal">
+  <div class="detail-box">
+    <button class="modal-close detail-close" id="detailClose">✕</button>
+    <div class="detail-bg" id="detailBg"></div>
+    <div class="detail-gradient"></div>
+    <div class="detail-content">
+      <div class="detail-poster-wrap">
+        <img class="detail-poster" id="detailPoster" src="" alt=""/>
+      </div>
+      <div class="detail-info">
+        <div class="detail-badge" id="detailBadge"></div>
+        <h2 class="detail-title" id="detailTitle"></h2>
+        <div class="detail-meta" id="detailMeta"></div>
+        <p class="detail-overview" id="detailOverview"></p>
+        <div class="detail-actions">
+          <button class="btn-play" id="detailPlay">▶ Play Now</button>
+          <button class="btn-add" id="detailWatchlist">+ Watchlist</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
