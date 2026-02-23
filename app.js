@@ -4,7 +4,7 @@
 
 // ─── CONFIG ──────────────────────────────────
 // Get your FREE API key at: https://www.themoviedb.org/settings/api
-const TMDB_KEY = "YOUR_TMDB_API_KEY_HERE";
+const TMDB_KEY = "c138886a68189d4f50a36bd5fe53e588";
 const TMDB = "https://api.themoviedb.org/3";
 const IMG = "https://image.tmdb.org/t/p/";
 
@@ -102,13 +102,7 @@ function scrollNavHandler() {
 }
 
 function buildMobileNav() {
-  const tabs = [
-    { tab: "home", icon: "🏠", label: "Home" },
-    { tab: "movies", icon: "🎬", label: "Movies" },
-    { tab: "kdrama", icon: "📺", label: "K-Drama" },
-    { tab: "anime", icon: "⚡", label: "Anime" },
-    { tab: "watchlist", icon: "🔖", label: "List" },
-  ];
+  const tabs = [];
   const nav = document.createElement("nav");
   nav.className = "mobile-nav";
   nav.innerHTML = tabs
@@ -919,7 +913,7 @@ function loadDemoMode() {
       title: "Demo Movie 3",
       vote_average: 9.0,
       release_date: "2023-11-20",
-      overview: "StreamVault is ready! Just add your API key.",
+      overview: "Zrn TV is ready! Just add your API key.",
       poster_path: null,
       backdrop_path: null,
     },
