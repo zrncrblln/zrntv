@@ -1,5 +1,6 @@
 {
   "name": "zrntv",
+  "homepage": "https://zrncrblln.github.io/zrntv/",
   "private": true,
   "workspaces": ["apps/*"],
   "scripts": {

@@ -1,5 +1,20 @@
 const API = '/api/tmdb';
 
+// Video Servers Configuration
+const VIDEO_SERVERS = [
+  { id: 'vidsrc', name: 'VidSrc', embed: 'https://vidsrc.to/embed/{type}/{id}' },
+  { id: 'vidsrcme', name: 'VidSrc.me', embed: 'https://vidsrc.me/embed/{type}/{id}' },
+  { id: 'vidplay', name: 'VidPlay', embed: 'https://playtube.ws/embed/{type}/{id}' },
+  { id: 'streamtape', name: 'StreamTape', embed: 'https://streamtape.com/e/{id}' },
+  { id: 'vidguard', name: 'VidGuard', embed: 'https://vidguard.site/embed/{type}/{id}' },
+  { id: 'superembed', name: 'SuperEmbed', embed: 'https://superembed.link/{type}/{id}' }
+];
+
+// Get preferred server or default to first
+let currentServer = localStorage.getItem('zrn_server') || 'vidsrc';
+let currentMediaType = 'movie';
+let currentMediaId = null;
+
 // DOM Elements
 const trendingRow = document.getElementById('trendingMovies');
 const popularKdramasRow = document.getElementById('popularKdramas');
@@ -21,6 +36,7 @@ const detailMeta = document.getElementById('detailMeta');
 const playerModal = document.getElementById('playerModal');
 const playerFrame = document.getElementById('playerFrame');
 const modalTitle = document.getElementById('modalTitle');
+const modalFullscreen = document.getElementById('modalFullscreen');
 
 const searchInput = document.getElementById('searchInput');
 const searchResults = document.getElementById('searchResults');
@@ -42,11 +58,93 @@ document.addEventListener('DOMContentLoaded', () => {
   initMobileSearch();
   initModalClosers();
   initScrollNavbar();
+  initFullscreen();
+  initLogoScrollTop();
   loadTrending();
   loadPopularKdramas();
   loadTopAnime();
   loadNewReleases();
+  buildSourceButtons();
 });
+
+// Logo scroll to top
+function initLogoScrollTop() {
+  const logo = document.getElementById('logo');
+  if (!logo) return;
+  
+  logo.style.cursor = 'pointer';
+  logo.addEventListener('click', () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  });
+}
+
+// Build source/server buttons
+function buildSourceButtons() {
+  const sourceRow = document.querySelector('.source-row');
+  if (!sourceRow) return;
+  
+  // Clear existing buttons (keep label)
+  const label = sourceRow.querySelector('.source-label');
+  sourceRow.innerHTML = '';
+  if (label) sourceRow.appendChild(label);
+  
+  // Create server buttons
+  VIDEO_SERVERS.forEach(server => {
+    const btn = document.createElement('button');
+    btn.className = `source-btn ${server.id === currentServer ? 'active' : ''}`;
+    btn.textContent = server.name;
+    btn.dataset.server = server.id;
+    btn.addEventListener('click', () => switchServer(server.id));
+    sourceRow.appendChild(btn);
+  });
+}
+
+// Switch video server
+function switchServer(serverId) {
+  currentServer = serverId;
+  localStorage.setItem('zrn_server', serverId);
+  
+  // Update button states
+  document.querySelectorAll('.source-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.server === serverId);
+  });
+  
+  // Reload player if there's content
+  if (currentMediaId) {
+    loadPlayer(currentMediaId, currentMediaType);
+  }
+}
+
+// Load player with current server
+function loadPlayer(id, type) {
+  const server = VIDEO_SERVERS.find(s => s.id === currentServer) || VIDEO_SERVERS[0];
+  let embedUrl = server.embed.replace('{id}', id).replace('{type}', type);
+  playerFrame.src = embedUrl;
+}
+
+// Fullscreen functionality
+function initFullscreen() {
+  if (!modalFullscreen) return;
+  
+  modalFullscreen.addEventListener('click', () => {
+    const playerWrap = document.querySelector('.player-wrap');
+    if (!playerWrap) return;
+    
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else if (playerWrap.requestFullscreen) {
+      playerWrap.requestFullscreen();
+    } else if (playerFrame.requestFullscreen) {
+      playerFrame.requestFullscreen();
+    } else {
+      // Fallback for older browsers
+      playerFrame.webkitRequestFullscreen?.();
+    }
+  });
+}
 
 // Navbar scroll effect
 function initScrollNavbar() {
@@ -462,8 +560,11 @@ function openDetail(movie) {
 
   detailModal.style.display = 'flex';
 
+  // Determine media type for play
+  const playType = movie.media_type || (movie.title ? 'movie' : 'tv');
+  
   document.getElementById('detailPlay').onclick = () => {
-    playMovie(movie.id, movie.title || movie.name);
+    playMovie(movie.id, movie.title || movie.name, playType);
   };
 
   document.getElementById('detailWatchlist').onclick = () => {
@@ -472,9 +573,14 @@ function openDetail(movie) {
 }
 
 // Play movie
-function playMovie(id, title) {
-  playerFrame.src = `https://vidsrc.to/embed/movie/${id}`;
+function playMovie(id, title, type = 'movie') {
+  // Close detail modal if open
+  detailModal.style.display = 'none';
+  
+  currentMediaId = id;
+  currentMediaType = type;
   modalTitle.textContent = title;
+  loadPlayer(id, type);
   playerModal.style.display = 'flex';
 }
 

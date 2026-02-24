@@ -873,6 +873,31 @@ body {
   color: var(--accent);
 }
 
+/* Source/Server buttons */
+.source-btn {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-family: "DM Mono", monospace;
+  font-size: 11px;
+  padding: 5px 10px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.source-btn:hover {
+  color: var(--text);
+  border-color: var(--text-muted);
+}
+.source-btn.active {
+  background: rgba(232, 180, 75, 0.1);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 /* ─── AUDIO TRACK CONTROLS ─── */
 .lang-sub-row {
   display: flex;
