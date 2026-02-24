@@ -67,6 +67,12 @@ function switchPage(pageName) {
   });
 
   currentPage = pageName;
+  
+  // Load data for the selected page
+  if (pageName === 'movies') loadMovies();
+  else if (pageName === 'kdrama') loadKDramas();
+  else if (pageName === 'anime') loadAnime();
+  else if (pageName === 'watchlist') loadWatchlist();
 }
 
 // Search
@@ -342,4 +348,87 @@ function showToast(message) {
 function clearContinue() {
   localStorage.removeItem('zrn_continue');
   document.getElementById('continueSection').style.display = 'none';
+}
+
+// ============ PAGE DATA LOADERS ============
+
+// Movies Page
+let moviesPage = 1;
+async function loadMovies(page = 1) {
+  try {
+    const res = await fetch(`${API}/discover/movie?sort_by=popularity.desc&page=${page}`);
+    const data = await res.json();
+    renderGrid('movieGrid', data.results || [], page > 1);
+    moviesPage = page;
+  } catch (error) {
+    console.error('Failed to load movies:', error);
+  }
+}
+
+document.getElementById('loadMoreMovies')?.addEventListener('click', () => loadMovies(moviesPage + 1));
+
+// K-Drama Page
+let kdramaPage = 1;
+async function loadKDramas(page = 1) {
+  try {
+    const res = await fetch(`${API}/discover/tv?with_origin_country=KR&sort_by=popularity.desc&page=${page}`);
+    const data = await res.json();
+    renderGrid('kdramaGrid', data.results || [], page > 1);
+    kdramaPage = page;
+  } catch (error) {
+    console.error('Failed to load K-Dramas:', error);
+  }
+}
+
+document.getElementById('loadMoreKdrama')?.addEventListener('click', () => loadKDramas(kdramaPage + 1));
+
+// Anime Page
+let animePage = 1;
+async function loadAnime(page = 1) {
+  try {
+    const res = await fetch(`${API}/discover/tv?with_genres=16&sort_by=popularity.desc&page=${page}`);
+    const data = await res.json();
+    renderGrid('animeGrid', data.results || [], page > 1);
+    animePage = page;
+  } catch (error) {
+    console.error('Failed to load Anime:', error);
+  }
+}
+
+document.getElementById('loadMoreAnime')?.addEventListener('click', () => loadAnime(animePage + 1));
+
+// Watchlist Page
+function loadWatchlist() {
+  const watchlist = JSON.parse(localStorage.getItem('zrn_watchlist') || '[]');
+  const grid = document.getElementById('watchlistGrid');
+  const empty = document.getElementById('watchlistEmpty');
+  
+  if (watchlist.length === 0) {
+    grid.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  
+  empty.style.display = 'none';
+  renderGrid('watchlistGrid', watchlist, false);
+}
+
+// Render grid (for movies/kdrama/anime/watchlist pages)
+function renderGrid(containerId, items, append = false) {
+  const container = document.getElementById(containerId);
+  if (!append) container.innerHTML = '';
+  
+  items.forEach(item => {
+    if (!item.poster_path) return;
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <img class="card-thumb" src="https://image.tmdb.org/t/p/w300${item.poster_path}" alt="${item.title || item.name}" loading="lazy">
+      <div class="card-overlay">
+        <span class="card-title">${item.title || item.name}</span>
+      </div>
+    `;
+    card.onclick = () => openDetail(item);
+    container.appendChild(card);
+  });
 }
