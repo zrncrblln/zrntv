@@ -1,5 +1,10 @@
 {
-  "devDependencies": {
-    "prettier": "3.8.1"
+  "name": "zrntv",
+  "private": true,
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "dev": "npm --workspace apps/web run dev",
+    "build": "npm --workspace apps/web run build",
+    "api": "npm --workspace apps/api run dev"
   }
 }
