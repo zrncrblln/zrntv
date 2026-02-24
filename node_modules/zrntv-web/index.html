@@ -9,6 +9,7 @@
       href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.1/css/all.min.css" />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
@@ -226,6 +227,49 @@
         <p class="footer-sig">Built by <span class="footer-name">Zoren Corbillon</span> &copy; 2026</p>
       </div>
     </footer>
+
+    <!-- MOBILE SEARCH -->
+    <div class="mobile-search" id="mobileSearch">
+      <div class="mobile-search-header">
+        <input
+          type="text"
+          id="mobileSearchInput"
+          placeholder="Search movies, TV shows..."
+          autocomplete="off"
+        />
+        <button class="mobile-search-close" id="mobileSearchClose">✕</button>
+      </div>
+      <div class="mobile-search-results" id="mobileSearchResults"></div>
+    </div>
+
+    <!-- MOBILE BOTTOM NAV -->
+    <nav class="mobile-nav">
+      <button class="mobile-nav-btn active" data-tab="home">
+        <i class="mobile-nav-icon fa-solid fa-house"></i>
+        <span>Home</span>
+      </button>
+      <button class="mobile-nav-btn" data-tab="search" id="mobileSearchBtn">
+        <i class="mobile-nav-icon fa-solid fa-magnifying-glass"></i>
+        <span>Search</span>
+      </button>
+      <button class="mobile-nav-btn" data-tab="movies">
+        <i class="mobile-nav-icon fa-solid fa-clapperboard"></i>
+        <span>Movies</span>
+      </button>
+      <button class="mobile-nav-btn" data-tab="kdrama">
+        <i class="mobile-nav-icon fa-sharp fa-regular fa-tv"></i>
+        <span>K-Drama</span>
+      </button>
+      <button class="mobile-nav-btn" data-tab="anime">
+        <i class="mobile-nav-icon fa-brands fa-bilibili"></i>
+        <span>Anime</span>
+      </button>
+      <button class="mobile-nav-btn" data-tab="watchlist">
+        <i class="mobile-nav-icon fa-brands fa-square-letterboxd"></i>
+        <span>Watchlist</span>
+      </button>
+    </nav>
+
     <script src="app.js"></script>
   </body>
 </html>

@@ -28,6 +28,7 @@ const searchBtn = document.getElementById('searchBtn');
 
 // Navigation
 const navTabs = document.querySelectorAll('.nav-tab');
+const mobileNavBtns = document.querySelectorAll('.mobile-nav-btn');
 const pages = document.querySelectorAll('.page');
 
 // Current state
@@ -38,18 +39,40 @@ let searchTimeout = null;
 document.addEventListener('DOMContentLoaded', () => {
   initNavigation();
   initSearch();
+  initMobileSearch();
   initModalClosers();
+  initScrollNavbar();
   loadTrending();
   loadPopularKdramas();
   loadTopAnime();
   loadNewReleases();
 });
 
+// Navbar scroll effect
+function initScrollNavbar() {
+  const navbar = document.getElementById('navbar');
+  window.addEventListener('scroll', () => {
+    if (window.scrollY > 50) {
+      navbar.classList.add('scrolled');
+    } else {
+      navbar.classList.remove('scrolled');
+    }
+  });
+}
+
 // Navigation
 function initNavigation() {
   navTabs.forEach(tab => {
     tab.addEventListener('click', () => {
       const tabName = tab.dataset.tab;
+      switchPage(tabName);
+    });
+  });
+
+  // Mobile navigation
+  mobileNavBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tabName = btn.dataset.tab;
       switchPage(tabName);
     });
   });
@@ -86,13 +109,13 @@ function initSearch() {
       return;
     }
 
-    searchTimeout = setTimeout(() => searchMovies(query), 300);
+    searchTimeout = setTimeout(() => searchAll(query), 300);
   });
 
   searchBtn.addEventListener('click', () => {
     const query = searchInput.value.trim();
     if (query.length >= 2) {
-      searchMovies(query);
+      searchAll(query);
     }
   });
 
@@ -104,12 +127,150 @@ function initSearch() {
   });
 }
 
+// Mobile Search
+function initMobileSearch() {
+  const mobileSearchBtn = document.getElementById('mobileSearchBtn');
+  const mobileSearch = document.getElementById('mobileSearch');
+  const mobileSearchClose = document.getElementById('mobileSearchClose');
+  const mobileSearchInput = document.getElementById('mobileSearchInput');
+  const mobileSearchResults = document.getElementById('mobileSearchResults');
+
+  if (!mobileSearchBtn || !mobileSearch) return;
+
+  // Open mobile search when clicking search button in bottom nav
+  mobileSearchBtn.addEventListener('click', () => {
+    mobileSearch.classList.add('active');
+    mobileSearchInput.focus();
+  });
+
+  // Close mobile search
+  if (mobileSearchClose) {
+    mobileSearchClose.addEventListener('click', () => {
+      mobileSearch.classList.remove('active');
+      mobileSearchInput.value = '';
+      mobileSearchResults.innerHTML = '';
+    });
+  }
+
+  // Close when clicking outside results
+  mobileSearch.addEventListener('click', (e) => {
+    if (e.target === mobileSearch) {
+      mobileSearch.classList.remove('active');
+      mobileSearchInput.value = '';
+      mobileSearchResults.innerHTML = '';
+    }
+  });
+
+  // Mobile search input handling
+  let mobileSearchTimeout = null;
+  mobileSearchInput.addEventListener('input', (e) => {
+    clearTimeout(mobileSearchTimeout);
+    const query = e.target.value.trim();
+    
+    if (query.length < 2) {
+      mobileSearchResults.innerHTML = '';
+      return;
+    }
+
+    mobileSearchTimeout = setTimeout(() => mobileSearchAll(query), 300);
+  });
+}
+
+// Mobile search both movies and TV shows
+async function mobileSearchAll(query) {
+  const mobileSearchResults = document.getElementById('mobileSearchResults');
+  
+  try {
+    const [movieRes, tvRes] = await Promise.all([
+      fetch(`${API}/search/movie?query=${encodeURIComponent(query)}`),
+      fetch(`${API}/search/tv?query=${encodeURIComponent(query)}`)
+    ]);
+    
+    const movieData = await movieRes.json();
+    const tvData = await tvRes.json();
+    
+    // Combine and sort by popularity
+    const results = [
+      ...(movieData.results || []).map(m => ({ ...m, media_type: 'movie' })),
+      ...(tvData.results || []).map(t => ({ ...t, media_type: 'tv' }))
+    ].sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
+    
+    displayMobileSearchResults(results);
+  } catch (error) {
+    console.error('Mobile search failed:', error);
+  }
+}
+
+function displayMobileSearchResults(results) {
+  const mobileSearchResults = document.getElementById('mobileSearchResults');
+  
+  if (results.length === 0) {
+    mobileSearchResults.innerHTML = '<div class="search-empty" style="text-align: center; padding: 40px; color: var(--text-muted);">No results found</div>';
+    return;
+  }
+
+  mobileSearchResults.innerHTML = results.slice(0, 10).map(item => {
+    const title = item.title || item.name;
+    const date = item.release_date || item.first_air_date || '';
+    const year = date ? date.split('-')[0] : '';
+    const type = item.media_type === 'movie' ? 'Movie' : 'TV Show';
+    
+    return `
+      <div class="search-item" data-id="${item.id}" data-type="${item.media_type}">
+        <img class="search-thumb" src="${item.poster_path ? 'https://image.tmdb.org/t/p/w92' + item.poster_path : ''}" alt="${title}">
+        <div class="search-info">
+          <div class="search-name">${title}</div>
+          <div class="search-meta">${year} • ${type}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Add click handlers
+  mobileSearchResults.querySelectorAll('.search-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const id = item.dataset.id;
+      const type = item.dataset.type;
+      fetchDetail(id, type);
+      
+      // Close mobile search
+      const mobileSearch = document.getElementById('mobileSearch');
+      mobileSearch.classList.remove('active');
+      document.getElementById('mobileSearchInput').value = '';
+      mobileSearchResults.innerHTML = '';
+    });
+  });
+}
+
+// Search both movies and TV shows
+async function searchAll(query) {
+  try {
+    const [movieRes, tvRes] = await Promise.all([
+      fetch(`${API}/search/movie?query=${encodeURIComponent(query)}`),
+      fetch(`${API}/search/tv?query=${encodeURIComponent(query)}`)
+    ]);
+    
+    const movieData = await movieRes.json();
+    const tvData = await tvRes.json();
+    
+    // Combine and sort by popularity
+    const results = [
+      ...(movieData.results || []).map(m => ({ ...m, media_type: 'movie' })),
+      ...(tvData.results || []).map(t => ({ ...t, media_type: 'tv' }))
+    ].sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
+    
+    displaySearchResults(results);
+  } catch (error) {
+    console.error('Search failed:', error);
+  }
+}
+
 async function searchMovies(query) {
   try {
     const res = await fetch(`${API}/search/movie?query=${encodeURIComponent(query)}`);
     const data = await res.json();
     
-    displaySearchResults(data.results || []);
+    displaySearchResults((data.results || []).map(m => ({ ...m, media_type: 'movie' })));
   } catch (error) {
     console.error('Search failed:', error);
   }
@@ -122,26 +283,39 @@ function displaySearchResults(results) {
     return;
   }
 
-  searchResults.innerHTML = results.slice(0, 8).map(movie => `
-    <div class="search-item" data-id="${movie.id}" data-type="movie">
-      <img class="search-thumb" src="${movie.poster_path ? 'https://image.tmdb.org/t/p/w92' + movie.poster_path : ''}" alt="">
-      <div class="search-info">
-        <div class="search-name">${movie.title}</div>
-        <div class="search-meta">${movie.release_date ? movie.release_date.split('-')[0] : ''}</div>
+  searchResults.innerHTML = results.slice(0, 8).map(item => {
+    const title = item.title || item.name;
+    const date = item.release_date || item.first_air_date || '';
+    const year = date ? date.split('-')[0] : '';
+    const type = item.media_type === 'movie' ? 'Movie' : 'TV Show';
+    
+    return `
+      <div class="search-item" data-id="${item.id}" data-type="${item.media_type}">
+        <img class="search-thumb" src="${item.poster_path ? 'https://image.tmdb.org/t/p/w92' + item.poster_path : ''}" alt="${title}">
+        <div class="search-info">
+          <div class="search-name">${title}</div>
+          <div class="search-meta">${year} • ${type}</div>
+        </div>
       </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 
   searchResults.style.display = 'block';
 
-  // Add click handlers
-  searchResults.querySelectorAll('.search-result').forEach(item => {
+  // Add click handlers - FIXED: was '.search-result' but elements use '.search-item'
+  searchResults.querySelectorAll('.search-item').forEach(item => {
     item.addEventListener('click', () => {
       const id = item.dataset.id;
       const type = item.dataset.type;
       fetchDetail(id, type);
       searchResults.style.display = 'none';
       searchInput.value = '';
+      
+      // Also close mobile search if open
+      const mobileSearch = document.getElementById('mobileSearch');
+      if (mobileSearch) {
+        mobileSearch.classList.remove('active');
+      }
     });
   });
 }
