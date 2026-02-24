@@ -173,6 +173,7 @@ document.addEventListener("DOMContentLoaded", () => {
   renderContinueWatching();
   scrollNavHandler();
   buildMobileNav();
+  setupMobileSearch();
 });
 
 // ─── MODAL SCROLL LOCK ───────────────────────
@@ -249,7 +250,13 @@ function scrollNavHandler() {
 }
 
 function buildMobileNav() {
-  const tabs = [];
+  const tabs = [
+    { tab: "home", icon: "🏠", label: "Home" },
+    { tab: "movies", icon: "🎬", label: "Movies" },
+    { tab: "kdrama", icon: "📺", label: "K-Drama" },
+    { tab: "anime", icon: "⚡", label: "Anime" },
+    { tab: "watchlist", icon: "🔖", label: "Watchlist" },
+  ];
   const nav = document.createElement("nav");
   nav.className = "mobile-nav";
   nav.innerHTML = tabs
@@ -266,6 +273,91 @@ function buildMobileNav() {
     .forEach((btn) =>
       btn.addEventListener("click", () => switchTab(btn.dataset.tab)),
     );
+}
+
+// ─── MOBILE SEARCH TOGGLE ────────────────────
+function setupMobileSearch() {
+  const toggleBtn = document.getElementById("mobileSearchToggle");
+  const mobileSearchPanel = document.getElementById("mobileSearchPanel");
+  const mobileInput = document.getElementById("mobileSearchInput");
+  const mobileResults = document.getElementById("mobileSearchResults");
+  const closeBtn = document.getElementById("mobileSearchClose");
+
+  if (!toggleBtn) return;
+
+  toggleBtn.addEventListener("click", () => {
+    mobileSearchPanel.classList.toggle("open");
+    if (mobileSearchPanel.classList.contains("open")) {
+      setTimeout(() => mobileInput.focus(), 100);
+    }
+  });
+
+  closeBtn.addEventListener("click", () => {
+    mobileSearchPanel.classList.remove("open");
+    mobileInput.value = "";
+    mobileResults.innerHTML = "";
+    mobileResults.classList.remove("show");
+  });
+
+  let mobileSearchTimer;
+  mobileInput.addEventListener("input", () => {
+    clearTimeout(mobileSearchTimer);
+    const q = mobileInput.value.trim();
+    if (!q) {
+      mobileResults.innerHTML = "";
+      mobileResults.classList.remove("show");
+      return;
+    }
+    mobileSearchTimer = setTimeout(async () => {
+      try {
+        const data = await tmdb("/search/multi", {
+          query: q,
+          include_adult: false,
+        });
+        const hits = (data.results || [])
+          .filter((r) => r.media_type !== "person")
+          .slice(0, 8);
+        if (!hits.length) {
+          mobileResults.innerHTML =
+            "<div style='padding:14px;color:var(--text-muted);font-size:13px;'>No results found.</div>";
+          mobileResults.classList.add("show");
+          return;
+        }
+        mobileResults.innerHTML = hits
+          .map((r) => {
+            const title = r.title || r.name || "Unknown";
+            const year = (r.release_date || r.first_air_date || "").slice(0, 4);
+            const type = r.media_type === "movie" ? "Movie" : "TV";
+            const thumb = r.poster_path ? `${IMG}w92${r.poster_path}` : "";
+            return `<div class="search-item" data-id="${r.id}" data-type="${r.media_type}">
+            ${thumb ? `<img class="search-thumb" src="${thumb}" alt="">` : `<div class="search-thumb" style="background:var(--surface2)"></div>`}
+            <div class="search-info">
+              <div class="search-name">${title}</div>
+              <div class="search-meta">${type}${year ? " · " + year : ""}</div>
+            </div>
+          </div>`;
+          })
+          .join("");
+        mobileResults.classList.add("show");
+        mobileResults.querySelectorAll(".search-item").forEach((el) => {
+          el.addEventListener("click", () => {
+            const id = +el.dataset.id;
+            const type = el.dataset.type;
+            const hit = hits.find((h) => h.id === id);
+            if (hit) {
+              mobileSearchPanel.classList.remove("open");
+              mobileInput.value = "";
+              mobileResults.innerHTML = "";
+              mobileResults.classList.remove("show");
+              openDetail(hit, type);
+            }
+          });
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    }, 350);
+  });
 }
 
 // ─── TMDB FETCH ──────────────────────────────
@@ -339,7 +431,7 @@ function showHeroSlide(i) {
     item.title || item.name || "";
   document.getElementById("heroDesc").textContent = item.overview || "";
   document.getElementById("heroBadge").textContent =
-    type === "movie" ? "🎬 TRENDING MOVIE" : "📺 TRENDING SERIES";
+    type === "movie" ? "TRENDING MOVIE" : "TRENDING SERIES";
   document.getElementById("heroMeta").innerHTML =
     `<span class="hero-rating">★ ${(item.vote_average || 0).toFixed(1)}</span>
      <span>${(item.release_date || item.first_air_date || "").slice(0, 4)}</span>
