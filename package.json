@@ -1,0 +1,11 @@
+{
+  "name": "zrntv",
+  "homepage": "https://zrncrblln.github.io/zrntv/",
+  "private": true,
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "dev": "npm --workspace apps/web run dev",
+    "build": "npm --workspace apps/web run build",
+    "api": "npm --workspace apps/api run dev"
+  }
+}
