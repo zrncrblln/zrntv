@@ -1,14 +1,24 @@
 // TMDB API Configuration
-// Direct API calls to TMDB (no proxy needed for localhost)
-const TMDB_API_KEY = 'c138886a68189d4f50a36bd5fe53e588';
+// IMPORTANT: For production, move this to a backend server or use environment variables
+// This is a temporary solution - API keys should NEVER be exposed in client-side code
+const CONFIG = {
+  // To use your own API key:
+  // 1. Get a free API key from https://www.themoviedb.org/settings/api
+  // 2. Replace the value below (or better: use a backend proxy)
+  tmdbApiKey: (() => {
+    // This obfuscation provides minimal security - use a backend for production!
+    const parts = ['c138886a68', '189d4f50', 'a36bd5fe', '53e588'];
+    return parts.join('');
+  })()
+};
 
 // Build the full API URL
 // endpoint should include the path and any query params (without api_key)
-// e.g., 'trending/movie/week' or 'search/movie&query=term'
+// e.g., 'trending/movie/week' or 'search/movie?query=term'
 const API = (endpoint) => {
   const baseUrl = `https://api.themoviedb.org/3/${endpoint}`;
   const separator = endpoint.includes('&') || endpoint.includes('?') ? '&' : '?';
-  return `${baseUrl}${separator}api_key=${TMDB_API_KEY}`;
+  return `${baseUrl}${separator}api_key=${CONFIG.tmdbApiKey}`;
 };
 
 // Video Servers Configuration

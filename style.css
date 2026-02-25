@@ -696,7 +696,7 @@ body {
   background: rgba(0, 0, 0, 0.85);
   z-index: 500;
   display: none;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
   padding: 20px;
   backdrop-filter: blur(6px);
@@ -713,9 +713,39 @@ body {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
-  width: clamp(300px, 90vw, 400px);
-  overflow: visible;
+  width: 100%;
+  max-width: min(95vw, 800px);
+  overflow: hidden;
   margin: auto;
+  flex-shrink: 0;
+  /* Better height handling - ensure content fits */
+  max-height: 95vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header stays at top */
+.modal-header {
+  flex-shrink: 0;
+}
+
+/* Episode controls stay visible */
+.ep-controls {
+  flex-shrink: 0;
+}
+
+/* Player wrapper with scrolling container */
+.player-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* Important for flexbox scrolling */
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Source row stays at bottom */
+.source-row {
   flex-shrink: 0;
 }
 
@@ -822,8 +852,11 @@ body {
 
 .player-wrap {
   position: relative;
-  padding-top: 45%;
+  padding-top: 56.25%; /* 16:9 aspect ratio */
   background: #000;
+  flex-shrink: 1; /* Allow to shrink if needed */
+  overflow: hidden;
+  width: 100%;
 }
 
 #playerFrame {
@@ -833,6 +866,15 @@ body {
   height: 100%;
 }
 
+/* Make controls scrollable on small screens */
+.ep-controls,
+.source-row,
+.lang-sub-row {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  flex-shrink: 0; /* Prevent from being cut off */
+}
+
 .source-row {
   display: flex;
   align-items: center;
@@ -840,6 +882,8 @@ body {
   padding: 12px 20px;
   border-top: 1px solid var(--border);
   flex-wrap: wrap;
+  background: var(--surface); /* Ensure it has a background */
+  border-radius: 0 0 12px 12px; /* Match modal radius */
 }
 
 .source-label {
@@ -1035,10 +1079,11 @@ body {
   border: 1px solid var(--border);
   border-radius: 14px;
   width: 100%;
-  max-width: 860px;
+  max-width: min(95vw, 900px);
   overflow-y: auto;
   margin: auto;
   flex-shrink: 0;
+  max-height: 90vh;
 }
 
 .detail-close {
@@ -1412,7 +1457,25 @@ body {
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   }
   .modal-box {
-    width: clamp(340px, 75vw, 400px);
+    max-width: min(90vw, 700px);
+  }
+  .detail-box {
+    max-width: min(90vw, 800px);
+  }
+  .player-wrap {
+    padding-top: 56.25%;
+  }
+}
+
+/* ============================================
+   RESPONSIVE — SMALL LAPTOP (1025–1280px)
+   ============================================ */
+@media (min-width: 1025px) and (max-width: 1280px) {
+  .modal-box {
+    max-width: 750px;
+  }
+  .detail-box {
+    max-width: 850px;
   }
 }
 
@@ -1549,16 +1612,29 @@ body {
     max-height: 95dvh;
     overflow-y: auto;
   }
+  .detail-box {
+    width: 100%;
+    max-width: 100%;
+    border-radius: 16px 16px 0 0;
+    max-height: 95dvh;
+  }
   .modal-header {
     padding: 12px 14px;
   }
   .modal-title {
     font-size: 13px;
   }
+  .player-wrap {
+    padding-top: 56.25%; /* Maintain 16:9 on mobile */
+  }
   .source-row {
     gap: 5px;
     padding: 8px 12px;
     flex-wrap: wrap;
+  }
+  .source-btn {
+    font-size: 10px;
+    padding: 4px 8px;
   }
   .src-btn {
     font-size: 10px;
@@ -1636,11 +1712,27 @@ body {
 }
 
 /* ============================================
-   LARGE DESKTOP — cap modal at 400px
+   LARGE DESKTOP — optimal modal sizes
    ============================================ */
 @media (min-width: 1025px) {
   .modal-box {
-    width: 400px;
+    max-width: 800px;
+    width: 85vw;
+  }
+  .detail-box {
+    max-width: 900px;
+  }
+}
+
+/* ============================================
+   EXTRA LARGE SCREENS — cap modal width
+   ============================================ */
+@media (min-width: 1440px) {
+  .modal-box {
+    max-width: 900px;
+  }
+  .detail-box {
+    max-width: 1000px;
   }
 }
 
