@@ -31,6 +31,48 @@ const VIDEO_SERVERS = [
   { id: 'superembed', name: 'SuperEmbed', embed: 'https://superembed.link/{type}/{id}' }
 ];
 
+// Genre Constants
+const MOVIE_GENRES = [
+  { id: 28, name: 'Action' },
+  { id: 12, name: 'Adventure' },
+  { id: 16, name: 'Animation' },
+  { id: 35, name: 'Comedy' },
+  { id: 80, name: 'Crime' },
+  { id: 99, name: 'Documentary' },
+  { id: 18, name: 'Drama' },
+  { id: 10751, name: 'Family' },
+  { id: 14, name: 'Fantasy' },
+  { id: 36, name: 'History' },
+  { id: 27, name: 'Horror' },
+  { id: 10402, name: 'Music' },
+  { id: 9648, name: 'Mystery' },
+  { id: 10749, name: 'Romance' },
+  { id: 878, name: 'Science Fiction' },
+  { id: 10770, name: 'TV Movie' },
+  { id: 53, name: 'Thriller' },
+  { id: 10752, name: 'War' },
+  { id: 37, name: 'Western' }
+];
+
+const TV_GENRES = [
+  { id: 10759, name: 'Action & Adventure' },
+  { id: 16, name: 'Animation' },
+  { id: 35, name: 'Comedy' },
+  { id: 80, name: 'Crime' },
+  { id: 99, name: 'Documentary' },
+  { id: 18, name: 'Drama' },
+  { id: 10751, name: 'Family' },
+  { id: 10762, name: 'Kids' },
+  { id: 9648, name: 'Mystery' },
+  { id: 10763, name: 'News' },
+  { id: 10764, name: 'Reality' },
+  { id: 10765, name: 'Sci-Fi & Fantasy' },
+  { id: 10766, name: 'Soap' },
+  { id: 10767, name: 'Talk' },
+  { id: 10768, name: 'War & Politics' },
+  { id: 37, name: 'Western' }
+];
+
 // Get preferred server or default to first
 let currentServer = localStorage.getItem('zrn_server') || 'vidsrc';
 let currentMediaType = 'movie';
@@ -57,11 +99,18 @@ const detailMeta = document.getElementById('detailMeta');
 const playerModal = document.getElementById('playerModal');
 const playerFrame = document.getElementById('playerFrame');
 const modalTitle = document.getElementById('modalTitle');
+const modalSub = document.getElementById('modalSub');
 const modalFullscreen = document.getElementById('modalFullscreen');
 
 const searchInput = document.getElementById('searchInput');
 const searchResults = document.getElementById('searchResults');
 const searchBtn = document.getElementById('searchBtn');
+
+// Episode selector elements
+const epControls = document.getElementById('epControls');
+const seasonSelect = document.getElementById('seasonSelect');
+const episodeSelect = document.getElementById('episodeSelect');
+const loadEpBtn = document.getElementById('loadEpBtn');
 
 // Navigation
 const navTabs = document.querySelectorAll('.nav-tab');
@@ -72,6 +121,16 @@ const pages = document.querySelectorAll('.page');
 let currentPage = 'home';
 let searchTimeout = null;
 
+// TV Show state
+let currentTVId = null;
+let currentSeason = 1;
+let currentEpisode = 1;
+let tvSeasonsData = {};
+
+// Genre filter state
+let currentMovieGenre = null;
+let currentTVGenre = null;
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
   initNavigation();
@@ -81,11 +140,16 @@ document.addEventListener('DOMContentLoaded', () => {
   initScrollNavbar();
   initFullscreen();
   initLogoScrollTop();
+  initEpisodeSelector();
+  initKeyboardShortcuts();
+  initGenreFilters();
   loadTrending();
   loadPopularKdramas();
   loadTopAnime();
   loadNewReleases();
   buildSourceButtons();
+  initScrollToTop();
+  displayContinueWatching();
 });
 
 // Logo scroll to top
@@ -220,6 +284,70 @@ function switchPage(pageName) {
   else if (pageName === 'kdrama') loadKDramas();
   else if (pageName === 'anime') loadAnime();
   else if (pageName === 'watchlist') loadWatchlist();
+}
+
+// Genre Filters
+function initGenreFilters() {
+  // Movie genres
+  const movieGenresContainer = document.getElementById('movieGenres');
+  if (movieGenresContainer) {
+    // Add "All" button
+    let movieHtml = '<button class="genre-btn active" data-genre="all">All</button>';
+    movieHtml += MOVIE_GENRES.slice(0, 8).map(g => 
+      `<button class="genre-btn" data-genre="${g.id}">${g.name}</button>`
+    ).join('');
+    movieGenresContainer.innerHTML = movieHtml;
+    
+    movieGenresContainer.querySelectorAll('.genre-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        movieGenresContainer.querySelectorAll('.genre-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const genreId = btn.dataset.genre === 'all' ? null : parseInt(btn.dataset.genre);
+        currentMovieGenre = genreId;
+        loadMovies(1, genreId);
+      });
+    });
+  }
+  
+  // K-Drama genres
+  const kdramaGenresContainer = document.getElementById('kdramaGenres');
+  if (kdramaGenresContainer) {
+    let kdramaHtml = '<button class="genre-btn active" data-genre="all">All</button>';
+    kdramaHtml += TV_GENRES.slice(0, 8).map(g => 
+      `<button class="genre-btn" data-genre="${g.id}">${g.name}</button>`
+    ).join('');
+    kdramaGenresContainer.innerHTML = kdramaHtml;
+    
+    kdramaGenresContainer.querySelectorAll('.genre-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        kdramaGenresContainer.querySelectorAll('.genre-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const genreId = btn.dataset.genre === 'all' ? null : parseInt(btn.dataset.genre);
+        currentTVGenre = genreId;
+        loadKDramas(1, genreId);
+      });
+    });
+  }
+  
+  // Anime genres
+  const animeGenresContainer = document.getElementById('animeGenres');
+  if (animeGenresContainer) {
+    let animeHtml = '<button class="genre-btn active" data-genre="all">All</button>';
+    animeHtml += TV_GENRES.slice(0, 8).map(g => 
+      `<button class="genre-btn" data-genre="${g.id}">${g.name}</button>`
+    ).join('');
+    animeGenresContainer.innerHTML = animeHtml;
+    
+    animeGenresContainer.querySelectorAll('.genre-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        animeGenresContainer.querySelectorAll('.genre-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const genreId = btn.dataset.genre === 'all' ? null : parseInt(btn.dataset.genre);
+        currentTVGenre = genreId;
+        loadAnime(1, genreId);
+      });
+    });
+  }
 }
 
 // Search
@@ -374,7 +502,7 @@ async function searchAll(query) {
       fetch(API(`search/tv?query=${encodeURIComponent(query)}`))
     ]);
     
-const movieData = await movieRes.json();
+    const movieData = await movieRes.json();
     const tvData = await tvRes.json();
     
     // Combine and sort by popularity
@@ -556,8 +684,9 @@ function renderSection(container, movies) {
 function createMovieCard(movie) {
   const card = document.createElement('div');
   card.className = 'card';
+  const fallbackImg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 150'%3E%3Crect fill='%230f1520' width='100' height='150'/%3E%3Ctext x='50' y='75' text-anchor='middle' fill='%236b7a8d' font-size='12'%3ENo Image%3C/text%3E%3C/svg%3E";
   card.innerHTML = `
-    <img class="card-thumb" src="https://image.tmdb.org/t/p/w300${movie.poster_path}" alt="${movie.title || movie.name}" loading="lazy">
+    <img class="card-thumb" src="https://image.tmdb.org/t/p/w300${movie.poster_path}" alt="${movie.title || movie.name}" loading="lazy" onerror="this.src='${fallbackImg}'">
     <div class="card-overlay">
       <span class="card-title">${movie.title || movie.name}</span>
     </div>
@@ -589,8 +718,20 @@ function openDetail(movie) {
   // Determine media type for play
   const playType = movie.media_type || (movie.title ? 'movie' : 'tv');
   
+  // Load TV show seasons if it's a TV show
+  if (playType === 'tv') {
+    loadTVShowDetails(movie.id);
+  } else {
+    epControls.style.display = 'none';
+  }
+  
   document.getElementById('detailPlay').onclick = () => {
-    playMovie(movie.id, movie.title || movie.name, playType);
+    if (playType === 'tv') {
+      // For TV shows, play the current selected episode
+      playEpisode(movie.id, currentSeason, currentEpisode);
+    } else {
+      playMovie(movie.id, movie.title || movie.name, playType);
+    }
   };
 
   document.getElementById('detailWatchlist').onclick = () => {
@@ -606,8 +747,14 @@ function playMovie(id, title, type = 'movie') {
   currentMediaId = id;
   currentMediaType = type;
   modalTitle.textContent = title;
+  modalSub.textContent = '';
   loadPlayer(id, type);
   playerModal.style.display = 'flex';
+  
+  // Save watch progress for movies
+  if (type === 'movie') {
+    saveWatchProgress(id, type);
+  }
 }
 
 // Fetch detail by ID (for search results)
@@ -650,7 +797,7 @@ function showToast(message) {
   setTimeout(() => toast.classList.remove('show'), 3000);
 }
 
-// Clear continue watching (placeholder)
+// Clear continue watching
 function clearContinue() {
   localStorage.removeItem('zrn_continue');
   document.getElementById('continueSection').style.display = 'none';
@@ -660,9 +807,13 @@ function clearContinue() {
 
 // Movies Page
 let moviesPage = 1;
-async function loadMovies(page = 1) {
+async function loadMovies(page = 1, genreId = null) {
   try {
-    const res = await fetch(API(`discover/movie?sort_by=popularity.desc&page=${page}`));
+    let endpoint = `discover/movie?sort_by=popularity.desc&page=${page}`;
+    if (genreId) {
+      endpoint = `discover/movie?with_genres=${genreId}&sort_by=popularity.desc&page=${page}`;
+    }
+    const res = await fetch(API(endpoint));
     const data = await res.json();
     renderGrid('movieGrid', data.results || [], page > 1);
     moviesPage = page;
@@ -671,13 +822,17 @@ async function loadMovies(page = 1) {
   }
 }
 
-document.getElementById('loadMoreMovies')?.addEventListener('click', () => loadMovies(moviesPage + 1));
+document.getElementById('loadMoreMovies')?.addEventListener('click', () => loadMovies(moviesPage + 1, currentMovieGenre));
 
 // K-Drama Page
 let kdramaPage = 1;
-async function loadKDramas(page = 1) {
+async function loadKDramas(page = 1, genreId = null) {
   try {
-    const res = await fetch(API(`discover/tv?with_origin_country=KR&sort_by=popularity.desc&page=${page}`));
+    let endpoint = `discover/tv?with_origin_country=KR&sort_by=popularity.desc&page=${page}`;
+    if (genreId) {
+      endpoint = `discover/tv?with_origin_country=KR&with_genres=${genreId}&sort_by=popularity.desc&page=${page}`;
+    }
+    const res = await fetch(API(endpoint));
     const data = await res.json();
     renderGrid('kdramaGrid', data.results || [], page > 1);
     kdramaPage = page;
@@ -686,13 +841,17 @@ async function loadKDramas(page = 1) {
   }
 }
 
-document.getElementById('loadMoreKdrama')?.addEventListener('click', () => loadKDramas(kdramaPage + 1));
+document.getElementById('loadMoreKdrama')?.addEventListener('click', () => loadKDramas(kdramaPage + 1, currentTVGenre));
 
 // Anime Page
 let animePage = 1;
-async function loadAnime(page = 1) {
+async function loadAnime(page = 1, genreId = null) {
   try {
-    const res = await fetch(API(`discover/tv?with_genres=16&sort_by=popularity.desc&page=${page}`));
+    let endpoint = `discover/tv?with_genres=16&sort_by=popularity.desc&page=${page}`;
+    if (genreId) {
+      endpoint = `discover/tv?with_genres=16,${genreId}&sort_by=popularity.desc&page=${page}`;
+    }
+    const res = await fetch(API(endpoint));
     const data = await res.json();
     renderGrid('animeGrid', data.results || [], page > 1);
     animePage = page;
@@ -701,7 +860,7 @@ async function loadAnime(page = 1) {
   }
 }
 
-document.getElementById('loadMoreAnime')?.addEventListener('click', () => loadAnime(animePage + 1));
+document.getElementById('loadMoreAnime')?.addEventListener('click', () => loadAnime(animePage + 1, currentTVGenre));
 
 // Watchlist Page
 function loadWatchlist() {
@@ -724,12 +883,14 @@ function renderGrid(containerId, items, append = false) {
   const container = document.getElementById(containerId);
   if (!append) container.innerHTML = '';
   
+  const fallbackImg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 150'%3E%3Crect fill='%230f1520' width='100' height='150'/%3E%3Ctext x='50' y='75' text-anchor='middle' fill='%236b7a8d' font-size='12'%3ENo Image%3C/text%3E%3C/svg%3E";
+  
   items.forEach(item => {
     if (!item.poster_path) return;
     const card = document.createElement('div');
     card.className = 'card';
     card.innerHTML = `
-      <img class="card-thumb" src="https://image.tmdb.org/t/p/w300${item.poster_path}" alt="${item.title || item.name}" loading="lazy">
+      <img class="card-thumb" src="https://image.tmdb.org/t/p/w300${item.poster_path}" alt="${item.title || item.name}" loading="lazy" onerror="this.src='${fallbackImg}'">
       <div class="card-overlay">
         <span class="card-title">${item.title || item.name}</span>
       </div>
@@ -737,4 +898,295 @@ function renderGrid(containerId, items, append = false) {
     card.onclick = () => openDetail(item);
     container.appendChild(card);
   });
+}
+
+// ============ EPISODE SELECTOR ============
+
+// Initialize episode selector
+function initEpisodeSelector() {
+  if (!seasonSelect || !episodeSelect || !loadEpBtn) return;
+  
+  seasonSelect.addEventListener('change', async () => {
+    currentSeason = parseInt(seasonSelect.value);
+    await loadEpisodes(currentTVId, currentSeason);
+  });
+  
+  episodeSelect.addEventListener('change', () => {
+    currentEpisode = parseInt(episodeSelect.value);
+  });
+  
+  loadEpBtn.addEventListener('click', () => {
+    if (currentTVId && currentSeason && currentEpisode) {
+      playEpisode(currentTVId, currentSeason, currentEpisode);
+    }
+  });
+}
+
+// Load TV show details (seasons)
+async function loadTVShowDetails(tvId) {
+  currentTVId = tvId;
+  tvSeasonsData = {};
+  
+  try {
+    const res = await fetch(API(`tv/${tvId}`));
+    const data = await res.json();
+    
+    if (data.seasons && data.seasons.length > 0) {
+      const seasons = data.seasons.filter(s => s.season_number > 0);
+      
+      seasonSelect.innerHTML = seasons.map(s => 
+        `<option value="${s.season_number}">Season ${s.season_number}</option>`
+      ).join('');
+      
+      currentSeason = 1;
+      seasonSelect.value = '1';
+      
+      await loadEpisodes(tvId, 1);
+      epControls.style.display = 'block';
+    } else {
+      epControls.style.display = 'none';
+    }
+  } catch (error) {
+    console.error('Failed to load TV show details:', error);
+    epControls.style.display = 'none';
+  }
+}
+
+// Load episodes for a season
+async function loadEpisodes(tvId, seasonNumber) {
+  try {
+    if (tvSeasonsData[seasonNumber]) {
+      populateEpisodeDropdown(tvSeasonsData[seasonNumber]);
+      return;
+    }
+    
+    const res = await fetch(API(`tv/${tvId}/season/${seasonNumber}`));
+    const data = await res.json();
+    
+    tvSeasonsData[seasonNumber] = data.episodes || [];
+    populateEpisodeDropdown(data.episodes || []);
+  } catch (error) {
+    console.error('Failed to load episodes:', error);
+    episodeSelect.innerHTML = '<option value="">Failed to load</option>';
+  }
+}
+
+// Populate episode dropdown
+function populateEpisodeDropdown(episodes) {
+  if (!episodes || episodes.length === 0) {
+    episodeSelect.innerHTML = '<option value="">No episodes</option>';
+    return;
+  }
+  
+  episodeSelect.innerHTML = episodes.map(ep => {
+    const epNum = ep.episode_number.toString().padStart(2, '0');
+    const title = ep.name || `Episode ${epNum}`;
+    return `<option value="${ep.episode_number}">${epNum} - ${title}</option>`
+  }).join('');
+  
+  currentEpisode = 1;
+  episodeSelect.value = '1';
+}
+
+// Play episode
+function playEpisode(tvId, season, episode) {
+  const epNum = episode.toString().padStart(2, '0');
+  const seasonNum = season.toString().padStart(2, '0');
+  
+  modalTitle.textContent = `${modalTitle.textContent} - S${seasonNum}E${epNum}`;
+  modalSub.textContent = `Season ${season} Episode ${episode}`;
+  
+  const server = VIDEO_SERVERS.find(s => s.id === currentServer) || VIDEO_SERVERS[0];
+  let embedUrl = server.embed
+    .replace('{id}', tvId)
+    .replace('{type}', 'tv')
+    .replace('/tv/', `/tv/${tvId}/`)
+    .replace('/embed/tv/', `/embed/tv/${tvId}/`);
+  
+  if (!embedUrl.includes(`/${season}/`)) {
+    embedUrl = embedUrl.replace(/\/$/, `/${season}-${episode}/`);
+  }
+  
+  playerFrame.src = embedUrl;
+  playerModal.style.display = 'flex';
+  saveWatchProgress(tvId, 'tv', season, episode);
+}
+
+// ============ KEYBOARD SHORTCUTS ============
+
+function initKeyboardShortcuts() {
+  document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+      if (e.key === 'Escape') {
+        e.target.blur();
+        closeAllModals();
+      }
+      return;
+    }
+    
+    switch(e.key) {
+      case 'Escape':
+        closeAllModals();
+        break;
+      case '/':
+        e.preventDefault();
+        searchInput.focus();
+        break;
+      case 'f':
+      case 'F':
+        if (playerModal.style.display === 'flex') {
+          toggleFullscreen();
+        }
+        break;
+    }
+  });
+}
+
+function closeAllModals() {
+  detailModal.style.display = 'none';
+  playerFrame.src = '';
+  playerModal.style.display = 'none';
+  
+  const mobileSearch = document.getElementById('mobileSearch');
+  if (mobileSearch) {
+    mobileSearch.classList.remove('active');
+  }
+}
+
+function toggleFullscreen() {
+  const playerWrap = document.querySelector('.player-wrap');
+  if (!playerWrap) return;
+  
+  if (document.fullscreenElement) {
+    document.exitFullscreen();
+  } else if (playerWrap.requestFullscreen) {
+    playerWrap.requestFullscreen();
+  }
+}
+
+// ============ SCROLL TO TOP BUTTON ============
+
+function initScrollToTop() {
+  const btn = document.createElement('button');
+  btn.id = 'scrollToTop';
+  btn.innerHTML = '↑';
+  btn.title = 'Scroll to top';
+  btn.onclick = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  btn.style.cssText = `
+    position: fixed;
+    bottom: 100px;
+    right: 24px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 18px;
+    cursor: pointer;
+    z-index: 99;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  `;
+  
+  window.addEventListener('scroll', () => {
+    if (window.scrollY > 500) {
+      btn.style.display = 'flex';
+    } else {
+      btn.style.display = 'none';
+    }
+  });
+  
+  btn.onmouseenter = () => {
+    btn.style.borderColor = 'var(--accent)';
+    btn.style.color = 'var(--accent)';
+  };
+  btn.onmouseleave = () => {
+    btn.style.borderColor = 'var(--border)';
+    btn.style.color = 'var(--text)';
+  };
+  
+  document.body.appendChild(btn);
+}
+
+// ============ WATCH PROGRESS / CONTINUE WATCHING ============
+
+function saveWatchProgress(id, type, season = 1, episode = 1) {
+  let continueWatching = JSON.parse(localStorage.getItem('zrn_continue') || '[]');
+  
+  continueWatching = continueWatching.filter(item => !(item.id === id && item.media_type === type));
+  
+  continueWatching.unshift({
+    id,
+    media_type: type,
+    season,
+    episode,
+    updated_at: Date.now()
+  });
+  
+  continueWatching = continueWatching.slice(0, 20);
+  localStorage.setItem('zrn_continue', JSON.stringify(continueWatching));
+  displayContinueWatching();
+}
+
+async function displayContinueWatching() {
+  const continueWatching = JSON.parse(localStorage.getItem('zrn_continue') || '[]');
+  const continueSection = document.getElementById('continueSection');
+  const continueRow = document.getElementById('continueRow');
+  
+  if (!continueSection || !continueRow) return;
+  
+  if (continueWatching.length === 0) {
+    continueSection.style.display = 'none';
+    return;
+  }
+  
+  continueSection.style.display = 'block';
+  continueRow.innerHTML = '';
+  
+  const fallbackImg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 150'%3E%3Crect fill='%230f1520' width='100' height='150'/%3E%3Ctext x='50' y='75' text-anchor='middle' fill='%236b7a8d' font-size='12'%3ENo Image%3C/text%3E%3C/svg%3E";
+  
+  for (const item of continueWatching.slice(0, 10)) {
+    try {
+      const endpoint = item.media_type === 'movie' ? `movie/${item.id}` : `tv/${item.id}`;
+      const res = await fetch(API(endpoint));
+      const data = await res.json();
+      
+      if (!data.poster_path) continue;
+      
+      const card = document.createElement('div');
+      card.className = 'card';
+      
+      const title = data.title || data.name;
+      let subtitle = '';
+      if (item.media_type === 'tv') {
+        subtitle = `S${item.season.toString().padStart(2, '0')}E${item.episode.toString().padStart(2, '0')}`;
+      }
+      
+      card.innerHTML = `
+        <img class="card-thumb" src="https://image.tmdb.org/t/p/w300${data.poster_path}" alt="${title}" loading="lazy" onerror="this.src='${fallbackImg}'">
+        <div class="card-overlay">
+          <span class="card-title">${title}</span>
+          ${subtitle ? `<span class="card-meta-ov">${subtitle}</span>` : ''}
+        </div>
+      `;
+      
+      card.onclick = () => {
+        if (item.media_type === 'tv') {
+          playEpisode(item.id, item.season, item.episode);
+        } else {
+          playMovie(item.id, title, 'movie');
+        }
+      };
+      
+      continueRow.appendChild(card);
+    } catch (error) {
+      console.error('Failed to load continue watching item:', error);
+    }
+  }
 }
