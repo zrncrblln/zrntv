@@ -866,6 +866,53 @@ body {
   height: 100%;
 }
 
+/* ============================================
+   FULLSCREEN POINTER-EVENTS FIX
+   ============================================ */
+/* When player wrapper is in fullscreen, ensure proper pointer-events */
+.player-wrap:-webkit-full-screen {
+  pointer-events: auto;
+}
+
+.player-wrap:fullscreen {
+  pointer-events: auto;
+}
+
+/* Ensure iframe in fullscreen doesn't block all clicks - allow UI overlays */
+#playerFrame:-webkit-full-screen {
+  pointer-events: auto;
+}
+
+#playerFrame:fullscreen {
+  pointer-events: auto;
+}
+
+/* When in fullscreen, allow click-through to document for Escape key handling */
+html:-webkit-full-screen {
+  pointer-events: auto;
+}
+
+html:fullscreen {
+  pointer-events: auto;
+}
+
+/* Fullscreen container should not block document-level events */
+.modal-overlay:-webkit-full-screen {
+  pointer-events: none;
+}
+
+.modal-overlay:fullscreen {
+  pointer-events: none;
+}
+
+.modal-box:-webkit-full-screen {
+  pointer-events: auto;
+}
+
+.modal-box:fullscreen {
+  pointer-events: auto;
+}
+
 /* Make controls scrollable on small screens */
 .ep-controls,
 .source-row,

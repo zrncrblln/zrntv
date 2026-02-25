@@ -22,14 +22,49 @@ const API = (endpoint) => {
 };
 
 // Video Servers Configuration
+// Updated with more reliable streaming sources
 const VIDEO_SERVERS = [
   { id: 'vidsrc', name: 'VidSrc', embed: 'https://vidsrc.to/embed/{type}/{id}' },
   { id: 'vidsrcme', name: 'VidSrc.me', embed: 'https://vidsrc.me/embed/{type}/{id}' },
-  { id: 'vidplay', name: 'VidPlay', embed: 'https://playtube.ws/embed/{type}/{id}' },
-  { id: 'streamtape', name: 'StreamTape', embed: 'https://streamtape.com/e/{id}' },
-  { id: 'vidguard', name: 'VidGuard', embed: 'https://vidguard.site/embed/{type}/{id}' },
-  { id: 'superembed', name: 'SuperEmbed', embed: 'https://superembed.link/{type}/{id}' }
+  { id: 'moviehab', name: 'MovieHab', embed: 'https://embed.moviehab.com/{type}/{id}' },
+  { id: 'superembed', name: 'SuperEmbed', embed: 'https://multiembed.mov/?video_id={id}&tmdb=1' },
+  { id: 'vidsrcing', name: 'VidSrcIng', embed: 'https://vidsrc.in/embed/{type}/{id}' },
+  { id: 'streamtape', name: 'StreamTape', embed: 'https://streamtape.com/e/{id}' }
 ];
+
+// Build episode URL based on server
+function buildEpisodeUrl(server, tvId, season, episode) {
+  const s = season.toString().padStart(2, '0');
+  const e = episode.toString().padStart(2, '0');
+  
+  switch(server.id) {
+    case 'vidsrc':
+      return `https://vidsrc.to/embed/tv/${tvId}/${season}/${episode}`;
+    case 'vidsrcme':
+      return `https://vidsrc.me/embed/tv/${tvId}-${season}-${episode}`;
+    case 'moviehab':
+      return `https://embed.moviehab.com/series/tv/${tvId}/${season}/${episode}`;
+    case 'vidsrcing':
+      return `https://vidsrc.in/embed/tv/${tvId}/${season}/${episode}`;
+    case 'streamtape':
+      return `https://streamtape.com/e/${tvId}-${season}-${episode}`;
+    case 'superembed':
+      // SuperEmbed uses TMDB ID directly
+      return `https://multiembed.mov/?video_id=${tvId}&tmdb=1&s=${season}&e=${episode}`;
+    default:
+      return server.embed.replace('{id}', tvId).replace('{type}', 'tv') + `/${season}/${episode}`;
+  }
+}
+
+// Build movie URL based on server
+function buildMovieUrl(server, movieId) {
+  switch(server.id) {
+    case 'superembed':
+      return `https://multiembed.mov/?video_id=${movieId}&tmdb=1`;
+    default:
+      return server.embed.replace('{id}', movieId).replace('{type}', 'movie');
+  }
+}
 
 // Genre Constants
 const MOVIE_GENRES = [
@@ -126,10 +161,90 @@ let currentTVId = null;
 let currentSeason = 1;
 let currentEpisode = 1;
 let tvSeasonsData = {};
+let originalTitle = ''; // Store original title for episode updates
 
 // Genre filter state
 let currentMovieGenre = null;
 let currentTVGenre = null;
+
+// ============ API CACHE & RETRY SYSTEM ============
+
+const CACHE_DURATION = {
+  episodes: 5 * 60 * 1000,  // 5 minutes
+  showDetails: 30 * 60 * 1000,  // 30 minutes
+  continueWatching: 10 * 60 * 1000  // 10 minutes
+};
+
+const apiCache = new Map();
+
+function getCachedData(key) {
+  const cached = apiCache.get(key);
+  if (!cached) return null;
+  
+  if (Date.now() - cached.timestamp > cached.duration) {
+    apiCache.delete(key);
+    return null;
+  }
+  
+  return cached.data;
+}
+
+function setCacheData(key, data, duration) {
+  apiCache.set(key, {
+    data: data,
+    timestamp: Date.now(),
+    duration: duration
+  });
+}
+
+async function fetchWithRetry(endpoint, options = {}) {
+  const {
+    retries = 3,
+    retryDelay = 1000,
+    cacheKey = null,
+    cacheDuration = 0,
+    showError = true
+  } = options;
+  
+  if (cacheKey) {
+    const cached = getCachedData(cacheKey);
+    if (cached) return cached;
+  }
+  
+  let lastError;
+  
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const response = await fetch(API(endpoint));
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (cacheKey && cacheDuration > 0) {
+        setCacheData(cacheKey, data, cacheDuration);
+      }
+      
+      return data;
+      
+    } catch (error) {
+      lastError = error;
+      console.warn(`Fetch attempt ${attempt}/${retries} failed:`, error.message);
+      
+      if (attempt < retries) {
+        await new Promise(resolve => setTimeout(resolve, retryDelay * attempt));
+      }
+    }
+  }
+  
+  if (showError) {
+    showToast(`Failed to load: ${lastError?.message || 'Unknown error'}`, 'error');
+  }
+  
+  throw lastError;
+}
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
@@ -206,7 +321,15 @@ function switchServer(serverId) {
 // Load player with current server
 function loadPlayer(id, type) {
   const server = VIDEO_SERVERS.find(s => s.id === currentServer) || VIDEO_SERVERS[0];
-  let embedUrl = server.embed.replace('{id}', id).replace('{type}', type);
+  let embedUrl;
+  
+  if (type === 'movie') {
+    embedUrl = buildMovieUrl(server, id);
+  } else {
+    // For TV shows, use the episode URL with default season/episode
+    embedUrl = buildEpisodeUrl(server, id, 1, 1);
+  }
+  
   playerFrame.src = embedUrl;
 }
 
@@ -229,6 +352,57 @@ function initFullscreen() {
       playerFrame.webkitRequestFullscreen?.();
     }
   });
+  
+  // Listen for fullscreen changes to handle pointer-events
+  document.addEventListener('fullscreenchange', handleFullscreenChange);
+  document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+}
+
+// Handle fullscreen change events
+function handleFullscreenChange() {
+  const playerWrap = document.querySelector('.player-wrap');
+  const playerModalEl = document.getElementById('playerModal');
+  
+  if (document.fullscreenElement || document.webkitFullscreenElement) {
+    // Entered fullscreen - ensure pointer events work properly
+    console.log('Entered fullscreen mode');
+    
+    // Add class for CSS targeting
+    playerWrap?.classList.add('is-fullscreen');
+    playerModalEl?.classList.add('is-fullscreen');
+    
+    // Ensure iframe can receive pointer events for video controls
+    if (playerFrame) {
+      playerFrame.style.pointerEvents = 'auto';
+    }
+  } else {
+    // Exited fullscreen - restore normal behavior
+    console.log('Exited fullscreen mode');
+    
+    // Remove fullscreen classes
+    playerWrap?.classList.remove('is-fullscreen');
+    playerModalEl?.classList.remove('is-fullscreen');
+    
+    // Ensure pointer events are properly restored
+    if (playerFrame) {
+      playerFrame.style.pointerEvents = 'auto';
+    }
+  }
+}
+
+// Force release pointer events if stuck in fullscreen
+function forceReleaseFullscreen() {
+  if (document.fullscreenElement) {
+    document.exitFullscreen().catch(() => {});
+  }
+  if (document.webkitFullscreenElement) {
+    document.webkitExitFullscreen?.().catch(() => {});
+  }
+  
+  // Reset pointer events on iframe
+  if (playerFrame) {
+    playerFrame.style.pointerEvents = 'auto';
+  }
 }
 
 // Navbar scroll effect
@@ -639,7 +813,9 @@ async function loadPopularKdramas() {
     const res = await fetch(API('discover/tv?with_origin_country=KR&sort_by=popularity.desc'));
     const data = await res.json();
 
-    renderSection(popularKdramasRow, data.results || []);
+    // Add media_type to each item for proper handling
+    const kdramas = (data.results || []).map(item => ({...item, media_type: 'tv'}));
+    renderSection(popularKdramasRow, kdramas);
   } catch (error) {
     console.error('Failed to load K-Dramas:', error);
   }
@@ -652,7 +828,9 @@ async function loadTopAnime() {
     const res = await fetch(API('discover/tv?with_genres=16&sort_by=popularity.desc'));
     const data = await res.json();
 
-    renderSection(topAnimeRow, data.results || []);
+    // Add media_type to each item for proper handling
+    const anime = (data.results || []).map(item => ({...item, media_type: 'tv'}));
+    renderSection(topAnimeRow, anime);
   } catch (error) {
     console.error('Failed to load Anime:', error);
   }
@@ -697,7 +875,9 @@ function createMovieCard(movie) {
 
 // Open detail modal
 function openDetail(movie) {
-  detailTitle.textContent = movie.title || movie.name;
+  const title = movie.title || movie.name;
+  
+  detailTitle.textContent = title;
   detailOverview.textContent = movie.overview || 'No description available.';
   
   if (movie.poster_path) {
@@ -718,8 +898,9 @@ function openDetail(movie) {
   // Determine media type for play
   const playType = movie.media_type || (movie.title ? 'movie' : 'tv');
   
-  // Load TV show seasons if it's a TV show
+  // Store original title for TV shows (used in playEpisode)
   if (playType === 'tv') {
+    originalTitle = title;
     loadTVShowDetails(movie.id);
   } else {
     epControls.style.display = 'none';
@@ -730,7 +911,7 @@ function openDetail(movie) {
       // For TV shows, play the current selected episode
       playEpisode(movie.id, currentSeason, currentEpisode);
     } else {
-      playMovie(movie.id, movie.title || movie.name, playType);
+      playMovie(movie.id, title, playType);
     }
   };
 
@@ -746,6 +927,8 @@ function playMovie(id, title, type = 'movie') {
   
   currentMediaId = id;
   currentMediaType = type;
+  originalTitle = title; // Store the original title
+  modalTitle.textContent = ''; // Clear existing title before setting new one
   modalTitle.textContent = title;
   modalSub.textContent = '';
   loadPlayer(id, type);
@@ -834,7 +1017,9 @@ async function loadKDramas(page = 1, genreId = null) {
     }
     const res = await fetch(API(endpoint));
     const data = await res.json();
-    renderGrid('kdramaGrid', data.results || [], page > 1);
+    // Add media_type to each item for proper handling
+    const kdramas = (data.results || []).map(item => ({...item, media_type: 'tv'}));
+    renderGrid('kdramaGrid', kdramas, page > 1);
     kdramaPage = page;
   } catch (error) {
     console.error('Failed to load K-Dramas:', error);
@@ -853,7 +1038,9 @@ async function loadAnime(page = 1, genreId = null) {
     }
     const res = await fetch(API(endpoint));
     const data = await res.json();
-    renderGrid('animeGrid', data.results || [], page > 1);
+    // Add media_type: 'tv' to all anime results since they're TV shows
+    const animeWithType = (data.results || []).map(item => ({ ...item, media_type: 'tv' }));
+    renderGrid('animeGrid', animeWithType, page > 1);
     animePage = page;
   } catch (error) {
     console.error('Failed to load Anime:', error);
@@ -922,24 +1109,48 @@ function initEpisodeSelector() {
   });
 }
 
-// Load TV show details (seasons)
+// Load TV show details (seasons) - with caching
 async function loadTVShowDetails(tvId) {
   currentTVId = tvId;
   tvSeasonsData = {};
   
+  // Show loading state
+  if (seasonSelect) seasonSelect.innerHTML = '<option value="">Loading...</option>';
+  if (episodeSelect) episodeSelect.innerHTML = '<option value="">Loading...</option>';
+  
   try {
-    const res = await fetch(API(`tv/${tvId}`));
-    const data = await res.json();
+    // Use fetchWithRetry for caching and retry logic
+    const data = await fetchWithRetry(
+      `tv/${tvId}`,
+      {
+        cacheKey: `tv_${tvId}`,
+        cacheDuration: CACHE_DURATION.showDetails
+      }
+    );
     
     if (data.seasons && data.seasons.length > 0) {
-      const seasons = data.seasons.filter(s => s.season_number > 0);
+      // Filter and sort seasons, limit to first 10 for performance
+      const seasons = data.seasons
+        .filter(s => s.season_number > 0)
+        .sort((a, b) => a.season_number - b.season_number)
+        .slice(0, 10);
+      
+      const hasMoreSeasons = data.seasons.filter(s => s.season_number > 0).length > 10;
       
       seasonSelect.innerHTML = seasons.map(s => 
         `<option value="${s.season_number}">Season ${s.season_number}</option>`
       ).join('');
       
+      // Add "Load More" option if show has many seasons
+      if (hasMoreSeasons) {
+        seasonSelect.innerHTML += `<option value="more">+ More seasons...</option>`;
+      }
+      
       currentSeason = 1;
       seasonSelect.value = '1';
+      
+      // Enable season selector
+      seasonSelect.disabled = false;
       
       await loadEpisodes(tvId, 1);
       epControls.style.display = 'block';
@@ -948,26 +1159,77 @@ async function loadTVShowDetails(tvId) {
     }
   } catch (error) {
     console.error('Failed to load TV show details:', error);
+    if (seasonSelect) seasonSelect.innerHTML = '<option value="">Failed to load</option>';
     epControls.style.display = 'none';
+    showToast('Failed to load show. Tap to retry.', 'error');
   }
 }
 
-// Load episodes for a season
-async function loadEpisodes(tvId, seasonNumber) {
-  try {
-    if (tvSeasonsData[seasonNumber]) {
-      populateEpisodeDropdown(tvSeasonsData[seasonNumber]);
-      return;
+// Handle "Load More" seasons click
+seasonSelect?.addEventListener('click', async function() {
+  if (this.value === 'more' && currentTVId) {
+    try {
+      const data = await fetchWithRetry(
+        `tv/${currentTVId}`,
+        { cacheKey: `tv_${currentTVId}`, cacheDuration: CACHE_DURATION.showDetails }
+      );
+      
+      if (data.seasons) {
+        const allSeasons = data.seasons
+          .filter(s => s.season_number > 0)
+          .sort((a, b) => a.season_number - b.season_number);
+        
+        seasonSelect.innerHTML = allSeasons.map(s => 
+          `<option value="${s.season_number}">Season ${s.season_number}</option>`
+        ).join('');
+        seasonSelect.value = currentSeason;
+        showToast(`Loaded ${allSeasons.length} seasons`);
+      }
+    } catch (error) {
+      console.error('Failed to load more seasons:', error);
     }
+  }
+});
+
+// Load episodes for a season - with caching and retry
+async function loadEpisodes(tvId, seasonNumber) {
+  // Check cache first
+  if (tvSeasonsData[seasonNumber]) {
+    populateEpisodeDropdown(tvSeasonsData[seasonNumber]);
+    return;
+  }
+  
+  // Show loading state
+  if (episodeSelect) {
+    episodeSelect.innerHTML = '<option value="">Loading...</option>';
+    episodeSelect.disabled = true;
+  }
+  
+  try {
+    const data = await fetchWithRetry(
+      `tv/${tvId}/season/${seasonNumber}`,
+      {
+        cacheKey: `ep_${tvId}_${seasonNumber}`,
+        cacheDuration: CACHE_DURATION.episodes
+      }
+    );
     
-    const res = await fetch(API(`tv/${tvId}/season/${seasonNumber}`));
-    const data = await res.json();
+    const episodes = data.episodes || [];
     
-    tvSeasonsData[seasonNumber] = data.episodes || [];
-    populateEpisodeDropdown(data.episodes || []);
+    // Cache episodes
+    tvSeasonsData[seasonNumber] = episodes;
+    
+    populateEpisodeDropdown(episodes);
+    
+    // Re-enable episode selector
+    if (episodeSelect) episodeSelect.disabled = false;
+    
   } catch (error) {
     console.error('Failed to load episodes:', error);
-    episodeSelect.innerHTML = '<option value="">Failed to load</option>';
+    if (episodeSelect) {
+      episodeSelect.innerHTML = '<option value="">Failed to load</option>';
+    }
+    showToast('Failed to load episodes. Tap to retry.', 'error');
   }
 }
 
@@ -988,24 +1250,21 @@ function populateEpisodeDropdown(episodes) {
   episodeSelect.value = '1';
 }
 
-// Play episode
+// Play episode - using helper functions for URL building
 function playEpisode(tvId, season, episode) {
   const epNum = episode.toString().padStart(2, '0');
   const seasonNum = season.toString().padStart(2, '0');
   
-  modalTitle.textContent = `${modalTitle.textContent} - S${seasonNum}E${epNum}`;
+  // Use originalTitle instead of modalTitle.textContent to avoid incrementing
+  modalTitle.textContent = ''; // Clear existing title before setting new one
+  modalTitle.textContent = `${originalTitle} - S${seasonNum}E${epNum}`;
   modalSub.textContent = `Season ${season} Episode ${episode}`;
   
+  // Use the helper function to build the episode URL
   const server = VIDEO_SERVERS.find(s => s.id === currentServer) || VIDEO_SERVERS[0];
-  let embedUrl = server.embed
-    .replace('{id}', tvId)
-    .replace('{type}', 'tv')
-    .replace('/tv/', `/tv/${tvId}/`)
-    .replace('/embed/tv/', `/embed/tv/${tvId}/`);
+  const embedUrl = buildEpisodeUrl(server, tvId, season, episode);
   
-  if (!embedUrl.includes(`/${season}/`)) {
-    embedUrl = embedUrl.replace(/\/$/, `/${season}-${episode}/`);
-  }
+  console.log('Playing episode:', embedUrl);
   
   playerFrame.src = embedUrl;
   playerModal.style.display = 'flex';
@@ -1020,13 +1279,19 @@ function initKeyboardShortcuts() {
       if (e.key === 'Escape') {
         e.target.blur();
         closeAllModals();
+        forceReleaseFullscreen();
       }
       return;
     }
     
     switch(e.key) {
       case 'Escape':
-        closeAllModals();
+        // First try to exit fullscreen if active
+        if (document.fullscreenElement || document.webkitFullscreenElement) {
+          forceReleaseFullscreen();
+        } else {
+          closeAllModals();
+        }
         break;
       case '/':
         e.preventDefault();
@@ -1040,6 +1305,14 @@ function initKeyboardShortcuts() {
         break;
     }
   });
+  
+  // Also handle click on document to catch stuck pointer events
+  document.addEventListener('click', () => {
+    // If pointer events seem stuck after fullscreen, this can help reset
+    if (playerFrame && playerFrame.style.pointerEvents === 'none') {
+      playerFrame.style.pointerEvents = 'auto';
+    }
+  }, true);
 }
 
 function closeAllModals() {
