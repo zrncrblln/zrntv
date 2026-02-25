@@ -1,4 +1,4 @@
-const API = '/api/tmdb';
+const API = import.meta.env.VITE_API_URL || '/api/tmdb';
 
 // Video Servers Configuration
 const VIDEO_SERVERS = [

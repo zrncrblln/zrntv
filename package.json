@@ -2,10 +2,16 @@
   "name": "zrntv",
   "homepage": "https://zrncrblln.github.io/zrntv/",
   "private": true,
-  "workspaces": ["apps/*"],
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
     "dev": "npm --workspace apps/web run dev",
     "build": "npm --workspace apps/web run build",
+    "deploy": "npm run build && git subtree split --prefix apps/web/dist -b gh-pages-temp && git push origin gh-pages-temp:gh-pages --force && git branch -D gh-pages-temp",
     "api": "npm --workspace apps/api run dev"
+  },
+  "devDependencies": {
+    "gh-pages": "^6.1.1"
   }
 }
